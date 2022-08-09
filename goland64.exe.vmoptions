@@ -1,0 +1,19 @@
+-Xms128m
+-Xmx2020m
+-XX:ReservedCodeCacheSize=512m
+-XX:+IgnoreUnrecognizedVMOptions
+-XX:+UseG1GC
+-XX:SoftRefLRUPolicyMSPerMB=50
+-XX:CICompilerCount=2
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:-OmitStackTraceInFastThrow
+-ea
+-Dsun.io.useCanonCaches=false
+-Djdk.http.auth.tunneling.disabledSchemes=""
+-Djdk.attach.allowAttachSelf=true
+-Djdk.module.illegalAccess.silent=true
+-Dkotlinx.coroutines.debug=off
+
+--add-opens=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED
+--add-opens=java.base/jdk.internal.org.objectweb.asm.tree=ALL-UNNAMED
+-javaagent:F:\Program Files\JetBrains\ja-netfilter.v3\ja-netfilter.jar
