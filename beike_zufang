@@ -1,0 +1,117 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2022/10/21 10:12
+@Author  : W9005266
+@File    : 贝壳租房信息.py
+@Software: PyCharm
+"""
+
+import requests
+import math
+
+
+# 根据经纬度和筛选条件，获取小区id
+def get_id():
+    ''' params参数介绍
+    'condition': 'Urt200600000001',  # 整租
+    'condition': 'Urt200600000001l3',  # 整租 套三（支持套一到套五及以上，l1-l5）
+    'condition': 'Urt200600000001l5l1',  # 整租 套五及以上，套一
+    'condition': 'Urt200600000001obrp1000oerp3000',  # 整租 价格1000-3000
+    'condition': 'Urt200600000001l2obrp1000oerp3000',  # 整租 套二 价格1000-3000
+    'condition': 'Urt200600000002',  # 合租
+    经纬度通过谷歌地图：https://www.google.com/maps/，或者高德经纬度接口：https://lbs.amap.com/tools/picker得到
+    :return:
+    '''
+    params = {
+        'cityId': 510100,
+        'dataSource': 'ZF',  # 租房
+        # 'dataSource': 'ESF',  # 二手房
+        'condition': 'Urt200600000001',  # 整租
+        # 'condition': 'Urt200600000002', # 合租
+        'groupType': 'community',
+        'maxLatitude': 30.5224707,
+        'minLatitude': 30.5073969,
+        'maxLongitude': 104.0843440,
+        'minLongitude': 104.0636829}
+
+    url = f'https://map.ke.com/proxyApi/i.c-pc-webapi.ke.com/map/bubblelist'
+    response = requests.get(url, params=params)
+    datas = response.json()['data']
+    bubbleList = datas['bubbleList']
+    res = []
+    for bubble in bubbleList:
+        count = bubble['count']  # 小区在租数量
+        bubbleDesc = bubble['bubbleDesc']  # 小区名字
+        entityId = bubble['entityId']  # 小区id
+        res.append([bubbleDesc, entityId, count])
+    print(f"此区域有{len(res)}个在出租小区")
+    return res
+
+
+# 获取租房详细信息
+def pars_zoom(resblockId, count):
+    '''
+    eg: ['劲松花园', '1620029978162184']
+    :param resblockId: 小区id
+    :param count: 小区房源数量
+    :return:
+    '''
+    pages = math.ceil(count / 10)
+    res = []
+    communityName = communityDesc = community_actionUrl = ''
+    for curPage in range(1, pages + 1):
+        params = {
+            'cityId': 510100,
+            'dataSource': 'ZF',
+            'curPage': curPage,
+            'condition': 'Urt200600000001',
+            'groupType': 'community',
+            'type': 30002,
+            'resblockId': resblockId}
+
+        url = f'https://map.ke.com/proxyApi/i.c-pc-webapi.ke.com/map/houselist'
+        response = requests.get(url, params=params)
+        datas = response.json()['data']
+
+        if curPage < 2:
+            resblockCard = datas['resblockCard']
+            if resblockCard:
+                communityName = resblockCard['communityName']  # 小区名字
+                communityDesc = resblockCard['communityDesc']  # 小区描述
+                community_actionUrl = resblockCard['actionUrl']  # 小区介绍链接
+
+        for data in datas['list']:
+            title = data['title']
+            desc = data['desc'].split('|')
+            area = desc[0]  # 面积
+            door_model = desc[1]  # 户型
+            toward = desc[2]  # 朝向
+            priceStr = data['priceStr'].split('元')[0]  # 价格
+            room_actionUrl = data['actionUrl']  # 房屋链接
+            cardType = data['cardType']  # 房屋类型（公寓|住宅）
+            tags = '|'.join([x['desc'] for x in data['tags']])  # 标签（新上|精装等）
+            res.append(
+                [title, area, door_model, toward, priceStr, tags, cardType, room_actionUrl, resblockId, communityName,
+                 communityDesc, community_actionUrl])
+
+        print(f'当前小区：{communityName}, 当前爬取页数{curPage}/{pages}, 当前爬取数量：{len(res)}')
+
+    return res
+
+
+def main():
+    import pandas as pd
+    import time
+
+    res = []
+    for infos in get_id():
+        name, ids, count = infos
+        res.extend(pars_zoom(ids, count))
+    columns = ['名字', '面积', '户型', '朝向', '价格', '标签', '房屋类型', '房屋链接', '小区id', '小区名字', '小区描述', '小区介绍链接']
+    times = time.strftime('%Y%m%d_%H_%M')
+    pd.DataFrame(res, columns=columns).to_excel(f'租房信息{times}.xlsx', index=False)
+
+
+if __name__ == '__main__':
+    main()
